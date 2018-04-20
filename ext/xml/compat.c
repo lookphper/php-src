@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2016 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -401,7 +401,7 @@ _get_entity(void *user, const xmlChar *name)
 	return ret;
 }
 
-static xmlSAXHandler
+static const xmlSAXHandler
 php_xml_compat_handlers = {
 	NULL, /* internalSubset */
 	NULL, /* isStandalone */
@@ -593,10 +593,12 @@ has been defined and none can be detected */
 	}
 #endif
 
+	if (parser->parser->lastError.level >= XML_ERR_WARNING) {
+		return 0;
+	}
+
 	error = xmlParseChunk(parser->parser, (char *) data, data_len, is_final);
-	if (!error) {
-		return 1;
-	} else if (parser->parser->lastError.level > XML_ERR_WARNING ){
+	if (error) {
 		return 0;
 	} else {
 		return 1;

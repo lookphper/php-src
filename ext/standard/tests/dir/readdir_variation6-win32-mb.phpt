@@ -1,5 +1,11 @@
 --TEST--
 Test readdir() function : usage variations - operate on previously opened directory
+--SKIPIF--
+<?php
+if (substr(PHP_OS, 0, 3) != 'WIN') {
+  die("skip Valid only on Windows");
+}
+?>
 --FILE--
 <?php
 /* Prototype  : string readdir([resource $dir_handle])
@@ -61,7 +67,7 @@ closedir();
 $dir_path = dirname(__FILE__) . "/私はガラスを食べられますreaddir_variation6";
 rmdir($dir_path);
 ?>
---EXPECTF--
+--EXPECT--
 *** Testing readdir() : usage variations ***
 
 -- Reading Directory Contents with Previous Handle --

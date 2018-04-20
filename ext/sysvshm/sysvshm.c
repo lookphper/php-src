@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2016 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -78,7 +78,7 @@ ZEND_END_ARG_INFO()
 
 /* {{{ sysvshm_functions[]
  */
-const zend_function_entry sysvshm_functions[] = {
+static const zend_function_entry sysvshm_functions[] = {
 	PHP_FE(shm_attach,		arginfo_shm_attach)
 	PHP_FE(shm_remove,		arginfo_shm_detach)
 	PHP_FE(shm_detach, 		arginfo_shm_remove)
@@ -182,7 +182,7 @@ PHP_FUNCTION(shm_attach)
 	}
 
 	if ((shm_ptr = shmat(shm_id, NULL, 0)) == (void *) -1) {
-		php_error_docref(NULL, E_WARNING, "failed for key 0x" ZEND_LONG_FMT ": %s", shm_key, strerror(errno));
+		php_error_docref(NULL, E_WARNING, "failed for key 0x" ZEND_XLONG_FMT ": %s", shm_key, strerror(errno));
 		efree(shm_list_ptr);
 		RETURN_FALSE;
 	}

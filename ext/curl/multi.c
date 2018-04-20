@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2016 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -79,12 +79,12 @@ PHP_FUNCTION(curl_multi_add_handle)
 	zval      *z_ch;
 	php_curlm *mh;
 	php_curl  *ch;
-	zval tmp_val;
 	CURLMcode error = CURLM_OK;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rr", &z_mh, &z_ch) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(2,2)
+		Z_PARAM_RESOURCE(z_mh)
+		Z_PARAM_RESOURCE(z_ch)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -96,10 +96,8 @@ PHP_FUNCTION(curl_multi_add_handle)
 
 	_php_curl_cleanup_handle(ch);
 
-	/* we want to create a copy of this zval that we store in the multihandle structure element "easyh" */
-	ZVAL_DUP(&tmp_val, z_ch);
-
-	zend_llist_add_element(&mh->easyh, &tmp_val);
+	GC_ADDREF(Z_RES_P(z_ch));
+	zend_llist_add_element(&mh->easyh, z_ch);
 
 	error = curl_multi_add_handle(mh->multi, ch->cp);
 	SAVE_CURLM_ERROR(mh, error);
@@ -169,9 +167,10 @@ PHP_FUNCTION(curl_multi_remove_handle)
 	php_curl  *ch;
 	CURLMcode error = CURLM_OK;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rr", &z_mh, &z_ch) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(2,2)
+		Z_PARAM_RESOURCE(z_mh)
+		Z_PARAM_RESOURCE(z_ch)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -214,9 +213,11 @@ PHP_FUNCTION(curl_multi_select)
 	struct timeval  to;
 	CURLMcode error = CURLM_OK;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|d", &z_mh, &timeout) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1,2)
+		Z_PARAM_RESOURCE(z_mh)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_DOUBLE(timeout)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -248,9 +249,10 @@ PHP_FUNCTION(curl_multi_exec)
 	int        still_running;
 	CURLMcode error = CURLM_OK;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rz/", &z_mh, &z_still_running) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_RESOURCE(z_mh)
+		Z_PARAM_ZVAL_DEREF(z_still_running)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -272,9 +274,9 @@ PHP_FUNCTION(curl_multi_exec)
 		}
 	}
 
-	convert_to_long(z_still_running);
-	still_running = Z_LVAL_P(z_still_running);
+	still_running = zval_get_long(z_still_running);
 	error = curl_multi_perform(mh->multi, &still_running);
+	zval_ptr_dtor(z_still_running);
 	ZVAL_LONG(z_still_running, still_running);
 
 	SAVE_CURLM_ERROR(mh, error);
@@ -289,9 +291,9 @@ PHP_FUNCTION(curl_multi_getcontent)
 	zval     *z_ch;
 	php_curl *ch;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &z_ch) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1,1)
+		Z_PARAM_RESOURCE(z_ch)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((ch = (php_curl *)zend_fetch_resource(Z_RES_P(z_ch), le_curl_name, le_curl)) == NULL) {
 		RETURN_FALSE;
@@ -309,7 +311,7 @@ PHP_FUNCTION(curl_multi_getcontent)
 }
 /* }}} */
 
-/* {{{ proto array curl_multi_info_read(resource mh [, long msgs_in_queue])
+/* {{{ proto array curl_multi_info_read(resource mh [, int &msgs_in_queue])
    Get information about the current transfers */
 PHP_FUNCTION(curl_multi_info_read)
 {
@@ -319,9 +321,11 @@ PHP_FUNCTION(curl_multi_info_read)
 	int        queued_msgs;
 	zval      *zmsgs_in_queue = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|z/", &z_mh, &zmsgs_in_queue) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_RESOURCE(z_mh)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ZVAL_DEREF(zmsgs_in_queue)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -332,7 +336,7 @@ PHP_FUNCTION(curl_multi_info_read)
 		RETURN_FALSE;
 	}
 	if (zmsgs_in_queue) {
-		zval_dtor(zmsgs_in_queue);
+		zval_ptr_dtor(zmsgs_in_queue);
 		ZVAL_LONG(zmsgs_in_queue, queued_msgs);
 	}
 
@@ -369,9 +373,9 @@ PHP_FUNCTION(curl_multi_close)
 	zval      *z_mh;
 	php_curlm *mh;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &z_mh) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1,1)
+		Z_PARAM_RESOURCE(z_mh)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -420,9 +424,9 @@ PHP_FUNCTION(curl_multi_errno)
 	zval        *z_mh;
 	php_curlm   *mh;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &z_mh) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1,1)
+		Z_PARAM_RESOURCE(z_mh)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -432,7 +436,6 @@ PHP_FUNCTION(curl_multi_errno)
 }
 /* }}} */
 
-#if LIBCURL_VERSION_NUM >= 0x070c00 /* Available since 7.12.0 */
 /* {{{ proto bool curl_multi_strerror(int code)
          return string describing error code */
 PHP_FUNCTION(curl_multi_strerror)
@@ -440,9 +443,9 @@ PHP_FUNCTION(curl_multi_strerror)
 	zend_long code;
 	const char *str;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &code) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1,1)
+		Z_PARAM_LONG(code)
+	ZEND_PARSE_PARAMETERS_END();
 
 	str = curl_multi_strerror(code);
 	if (str) {
@@ -452,7 +455,6 @@ PHP_FUNCTION(curl_multi_strerror)
 	}
 }
 /* }}} */
-#endif
 
 #if LIBCURL_VERSION_NUM >= 0x072C00 /* Available since 7.44.0 */
 
@@ -515,11 +517,8 @@ static int _php_server_push_callback(CURL *parent_ch, CURL *easy, size_t num_hea
 	} else if (!Z_ISUNDEF(retval)) {
 		if (CURL_PUSH_DENY != zval_get_long(&retval)) {
 		    rval = CURL_PUSH_OK;
-
-			/* we want to create a copy of this zval that we store in the multihandle structure element "easyh" */
-			zval tmp_val;
-			ZVAL_DUP(&tmp_val, &pz_ch);
-			zend_llist_add_element(&mh->easyh, &tmp_val);
+			GC_ADDREF(Z_RES(pz_ch));
+			zend_llist_add_element(&mh->easyh, &pz_ch);
 		} else {
 			/* libcurl will free this easy handle, avoid double free */
 			ch->cp = NULL;
@@ -528,10 +527,10 @@ static int _php_server_push_callback(CURL *parent_ch, CURL *easy, size_t num_hea
 
 	return rval;
 }
+/* }}} */
 
 #endif
 
-#if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
 static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue, zval *return_value) /* {{{ */
 {
 	CURLMcode error = CURLM_OK;
@@ -598,9 +597,11 @@ PHP_FUNCTION(curl_multi_setopt)
 	zend_long        options;
 	php_curlm *mh;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rlz", &z_mh, &options, &zvalue) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(3,3)
+		Z_PARAM_RESOURCE(z_mh)
+		Z_PARAM_LONG(options)
+		Z_PARAM_ZVAL(zvalue)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if ((mh = (php_curlm *)zend_fetch_resource(Z_RES_P(z_mh), le_curl_multi_handle_name, le_curl_multi_handle)) == NULL) {
 		RETURN_FALSE;
@@ -613,7 +614,6 @@ PHP_FUNCTION(curl_multi_setopt)
 	}
 }
 /* }}} */
-#endif
 
 #endif
 

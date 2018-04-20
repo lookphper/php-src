@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | TAR archive support for Phar                                         |
   +----------------------------------------------------------------------+
-  | Copyright (c) 2005-2016 The PHP Group                                |
+  | Copyright (c) 2005-2018 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -19,7 +19,7 @@
 
 #include "phar_internal.h"
 
-static uint32_t phar_tar_number(char *buf, int len) /* {{{ */
+static uint32_t phar_tar_number(char *buf, size_t len) /* {{{ */
 {
 	uint32_t num = 0;
 	int i = 0;
@@ -84,7 +84,7 @@ static int phar_tar_octal(char *buf, uint32_t val, int len) /* {{{ */
 }
 /* }}} */
 
-static uint32_t phar_tar_checksum(char *buf, int len) /* {{{ */
+static uint32_t phar_tar_checksum(char *buf, size_t len) /* {{{ */
 {
 	uint32_t sum = 0;
 	char *end = buf + len;
@@ -124,7 +124,7 @@ int phar_is_tar(char *buf, char *fname) /* {{{ */
 }
 /* }}} */
 
-int phar_open_or_create_tar(char *fname, int fname_len, char *alias, int alias_len, int is_data, int options, phar_archive_data** pphar, char **error) /* {{{ */
+int phar_open_or_create_tar(char *fname, size_t fname_len, char *alias, size_t alias_len, int is_data, uint32_t options, phar_archive_data** pphar, char **error) /* {{{ */
 {
 	phar_archive_data *phar;
 	int ret = phar_create_or_parse_filename(fname, fname_len, alias, alias_len, is_data, options, &phar, error);
@@ -202,7 +202,7 @@ static size_t strnlen(const char *s, size_t maxlen) {
 }
 #endif
 
-int phar_parse_tarfile(php_stream* fp, char *fname, int fname_len, char *alias, int alias_len, phar_archive_data** pphar, int is_data, uint32_t compression, char **error) /* {{{ */
+int phar_parse_tarfile(php_stream* fp, char *fname, size_t fname_len, char *alias, size_t alias_len, phar_archive_data** pphar, int is_data, uint32_t compression, char **error) /* {{{ */
 {
 	char buf[512], *actual_alias = NULL, *p;
 	phar_entry_info entry = {0};
@@ -211,7 +211,7 @@ int phar_parse_tarfile(php_stream* fp, char *fname, int fname_len, char *alias, 
 	uint32_t sum1, sum2, size, old;
 	phar_archive_data *myphar, *actual;
 	int last_was_longlink = 0;
-	int linkname_len;
+	size_t linkname_len;
 
 	if (error) {
 		*error = NULL;
@@ -274,6 +274,7 @@ int phar_parse_tarfile(php_stream* fp, char *fname, int fname_len, char *alias, 
 
 		if (((!old && hdr->prefix[0] == 0) || old) && strnlen(hdr->name, 100) == sizeof(".phar/signature.bin")-1 && !strncmp(hdr->name, ".phar/signature.bin", sizeof(".phar/signature.bin")-1)) {
 			zend_off_t curloc;
+			size_t sig_len;
 
 			if (size > 511) {
 				if (error) {
@@ -286,7 +287,7 @@ bail:
 			}
 			curloc = php_stream_tell(fp);
 			read = php_stream_read(fp, buf, size);
-			if (read != size) {
+			if (read != size || read <= 8) {
 				if (error) {
 					spprintf(error, 4096, "phar error: tar-based phar \"%s\" signature cannot be read", fname);
 				}
@@ -302,7 +303,7 @@ bail:
 # define PHAR_GET_32(buffer) (uint32_t) *(buffer)
 #endif
 			myphar->sig_flags = PHAR_GET_32(buf);
-			if (FAILURE == phar_verify_signature(fp, php_stream_tell(fp) - size - 512, myphar->sig_flags, buf + 8, size - 8, fname, &myphar->signature, &myphar->sig_len, error)) {
+			if (FAILURE == phar_verify_signature(fp, php_stream_tell(fp) - size - 512, myphar->sig_flags, buf + 8, size - 8, fname, &myphar->signature, &sig_len, error)) {
 				if (error) {
 					char *save = *error;
 					spprintf(error, 4096, "phar error: tar-based phar \"%s\" signature cannot be verified: %s", fname, save);
@@ -310,12 +311,13 @@ bail:
 				}
 				goto bail;
 			}
+			myphar->sig_len = sig_len;
 			php_stream_seek(fp, curloc + 512, SEEK_SET);
 			/* signature checked out, let's ensure this is the last file in the phar */
 			if (((hdr->typeflag == '\0') || (hdr->typeflag == TAR_FILE)) && size > 0) {
 				/* this is not good enough - seek succeeds even on truncated tars */
 				php_stream_seek(fp, 512, SEEK_CUR);
-				if ((uint)php_stream_tell(fp) > totalsize) {
+				if ((uint32_t)php_stream_tell(fp) > totalsize) {
 					if (error) {
 						spprintf(error, 4096, "phar error: \"%s\" is a corrupted tar file (truncated)", fname);
 					}
@@ -383,7 +385,7 @@ bail:
 
 			/* this is not good enough - seek succeeds even on truncated tars */
 			php_stream_seek(fp, size, SEEK_CUR);
-			if ((uint)php_stream_tell(fp) > totalsize) {
+			if ((uint32_t)php_stream_tell(fp) > totalsize) {
 				efree(entry.filename);
 				if (error) {
 					spprintf(error, 4096, "phar error: \"%s\" is a corrupted tar file (truncated)", fname);
@@ -486,7 +488,7 @@ bail:
 		if (entry.tar_type == TAR_LINK) {
 			if (!zend_hash_str_exists(&myphar->manifest, hdr->linkname, linkname_len)) {
 				if (error) {
-					spprintf(error, 4096, "phar error: \"%s\" is a corrupted tar file - hard link to non-existent file \"%.*s\"", fname, linkname_len, hdr->linkname);
+					spprintf(error, 4096, "phar error: \"%s\" is a corrupted tar file - hard link to non-existent file \"%.*s\"", fname, (int)linkname_len, hdr->linkname);
 				}
 				pefree(entry.filename, entry.is_persistent);
 				php_stream_close(fp);
@@ -570,7 +572,7 @@ bail:
 next:
 			/* this is not good enough - seek succeeds even on truncated tars */
 			php_stream_seek(fp, size, SEEK_CUR);
-			if ((uint)php_stream_tell(fp) > totalsize) {
+			if ((uint32_t)php_stream_tell(fp) > totalsize) {
 				if (error) {
 					spprintf(error, 4096, "phar error: \"%s\" is a corrupted tar file (truncated)", fname);
 				}
@@ -946,7 +948,8 @@ int phar_tar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int 
 	phar_entry_info entry = {0};
 	static const char newstub[] = "<?php // tar-based phar archive stub file\n__HALT_COMPILER();";
 	php_stream *oldfile, *newfile, *stubfile;
-	int closeoldfile, free_user_stub, signature_length;
+	int closeoldfile, free_user_stub;
+	size_t signature_length;
 	struct _phar_pass_tar_info pass;
 	char *buf, *signature, *tmp, sigbuf[8];
 	char halt_stub[] = "__HALT_COMPILER();";
@@ -959,6 +962,8 @@ int phar_tar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int 
 	entry.tar_type = '0';
 	entry.phar = phar;
 	entry.fp_type = PHAR_MOD;
+	entry.fp = NULL;
+	entry.filename = NULL;
 
 	if (phar->is_persistent) {
 		if (error) {
@@ -977,13 +982,16 @@ int phar_tar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int 
 		entry.filename_len = sizeof(".phar/alias.txt")-1;
 		entry.fp = php_stream_fopen_tmpfile();
 		if (entry.fp == NULL) {
+			efree(entry.filename);
 			spprintf(error, 0, "phar error: unable to create temporary file");
 			return -1;
 		}
-		if (phar->alias_len != (int)php_stream_write(entry.fp, phar->alias, phar->alias_len)) {
+		if (phar->alias_len != php_stream_write(entry.fp, phar->alias, phar->alias_len)) {
 			if (error) {
 				spprintf(error, 0, "unable to set alias in tar-based phar \"%s\"", phar->fname);
 			}
+			php_stream_close(entry.fp);
+			efree(entry.filename);
 			return EOF;
 		}
 
@@ -993,8 +1001,12 @@ int phar_tar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int 
 			if (error) {
 				spprintf(error, 0, "unable to set alias in tar-based phar \"%s\"", phar->fname);
 			}
+			php_stream_close(entry.fp);
+			efree(entry.filename);
 			return EOF;
 		}
+		/* At this point the entry is saved into the manifest. The manifest destroy
+			routine will care about any resources to be freed. */
 	} else {
 		zend_hash_str_del(&phar->manifest, ".phar/alias.txt", sizeof(".phar/alias.txt")-1);
 	}
@@ -1240,7 +1252,7 @@ nostub:
 		PHAR_SET_32(sigbuf, phar->sig_flags);
 		PHAR_SET_32(sigbuf + 4, signature_length);
 
-		if (8 != (int)php_stream_write(entry.fp, sigbuf, 8) || signature_length != (int)php_stream_write(entry.fp, signature, signature_length)) {
+		if (8 != php_stream_write(entry.fp, sigbuf, 8) || signature_length != php_stream_write(entry.fp, signature, signature_length)) {
 			efree(signature);
 			if (error) {
 				spprintf(error, 0, "phar error: unable to write signature to tar-based phar %s", phar->fname);

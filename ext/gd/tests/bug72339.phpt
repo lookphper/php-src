@@ -1,7 +1,12 @@
 --TEST--
 Bug #72339 Integer Overflow in _gd2GetHeader() resulting in heap overflow 
 --SKIPIF--
-<?php if (!function_exists("imagecreatefromgd2")) print "skip"; ?>
+<?php
+if (!function_exists("imagecreatefromgd2")) print "skip";
+if (!GD_BUNDLED && version_compare(GD_VERSION, '2.2.2', '<')) {
+	die("skip test requires GD 2.2.2 or higher");
+}
+?>
 --FILE--
 <?php
 $fname = dirname(__FILE__) . DIRECTORY_SEPARATOR . "bug72339.gd";
@@ -27,7 +32,7 @@ unlink($fname);
 
 ?>
 --EXPECTF--	
-Warning: imagecreatefromgd2(): gd warning: product of memory allocation multiplication would exceed INT_MAX, failing operation gracefully
+Warning: imagecreatefromgd2(): product of memory allocation multiplication would exceed INT_MAX, failing operation gracefully
  in %sbug72339.php on line %d
 
 Warning: imagecreatefromgd2(): '%sbug72339.gd' is not a valid GD2 file in %sbug72339.php on line %d

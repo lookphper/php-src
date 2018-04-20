@@ -1,5 +1,11 @@
 --TEST--
 Test readdir() function : usage variations - sub-directories 
+--SKIPIF--
+<?php
+if (substr(PHP_OS, 0, 3) != 'WIN') {
+  die("skip Valid only on Windows");
+}
+?>
 --FILE--
 <?php
 /* Prototype  : string readdir([resource $dir_handle])
@@ -51,7 +57,7 @@ $path_sub = $path_top . '/私はガラスを食べられますsub_folder';
 rmdir($path_sub);
 rmdir($path_top);
 ?>
---EXPECTF--
+--EXPECT--
 *** Testing readdir() : usage variations ***
 array(5) {
   [0]=>

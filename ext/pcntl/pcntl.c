@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2016 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -45,6 +45,14 @@
 #endif
 
 #include <errno.h>
+
+#ifndef NSIG
+# ifdef SIGRTMAX
+#  define NSIG (SIGRTMAX + 1)
+# else
+#  define NSIG 32
+# endif
+#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(pcntl)
 static PHP_GINIT_FUNCTION(pcntl);
@@ -162,7 +170,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_pcntl_async_signals, 0, 0, 1)
 ZEND_END_ARG_INFO()
 /* }}} */
 
-const zend_function_entry pcntl_functions[] = {
+static const zend_function_entry pcntl_functions[] = {
 	PHP_FE(pcntl_fork,			arginfo_pcntl_void)
 	PHP_FE(pcntl_waitpid,		arginfo_pcntl_waitpid)
 	PHP_FE(pcntl_wait,			arginfo_pcntl_wait)
@@ -179,7 +187,7 @@ const zend_function_entry pcntl_functions[] = {
 	PHP_FE(pcntl_alarm,			arginfo_pcntl_alarm)
 	PHP_FE(pcntl_get_last_error,	arginfo_pcntl_void)
 	PHP_FALIAS(pcntl_errno, pcntl_get_last_error,	NULL)
-	PHP_FE(pcntl_strerror,		arginfo_pcntl_strerror) 
+	PHP_FE(pcntl_strerror,		arginfo_pcntl_strerror)
 #ifdef HAVE_GETPRIORITY
 	PHP_FE(pcntl_getpriority,	arginfo_pcntl_getpriority)
 #endif
@@ -300,6 +308,12 @@ void php_register_signal_constants(INIT_FUNC_ARGS)
 #ifdef SIGSYS
 	REGISTER_LONG_CONSTANT("SIGSYS",   (zend_long) SIGSYS, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SIGBABY",  (zend_long) SIGSYS, CONST_CS | CONST_PERSISTENT);
+#endif
+#ifdef SIGRTMIN
+	REGISTER_LONG_CONSTANT("SIGRTMIN", (zend_long) SIGRTMIN, CONST_CS | CONST_PERSISTENT);
+#endif
+#ifdef SIGRTMAX
+	REGISTER_LONG_CONSTANT("SIGRTMAX", (zend_long) SIGRTMAX, CONST_CS | CONST_PERSISTENT);
 #endif
 
 #if HAVE_GETPRIORITY || HAVE_SETPRIORITY
@@ -560,11 +574,6 @@ PHP_RSHUTDOWN_FUNCTION(pcntl)
 	while (PCNTL_G(head)) {
 		sig = PCNTL_G(head);
 		PCNTL_G(head) = sig->next;
-#ifdef HAVE_STRUCT_SIGINFO_T
-		if (sig->siginfo) {
-			zend_array_destroy(sig->siginfo);
-		}
-#endif
 		efree(sig);
 	}
 	while (PCNTL_G(spares)) {
@@ -613,7 +622,7 @@ PHP_FUNCTION(pcntl_alarm)
 
 #define PHP_RUSAGE_PARA(from, to, field) \
 	add_assoc_long(to, #field, from.field)
-#if !defined(_OSD_POSIX) && !defined(__BEOS__) /* BS2000 has only a few fields in the rusage struct */
+#ifndef _OSD_POSIX
 	#define PHP_RUSAGE_SPECIAL(from, to) \
 		PHP_RUSAGE_PARA(from, to, ru_oublock); \
 		PHP_RUSAGE_PARA(from, to, ru_inblock); \
@@ -755,20 +764,23 @@ PHP_FUNCTION(pcntl_wait)
 #undef PHP_RUSAGE_COMMON
 #undef PHP_RUSAGE_TO_ARRAY
 
-/* {{{ proto bool pcntl_wifexited(int status) 
+/* {{{ proto bool pcntl_wifexited(int status)
    Returns true if the child status code represents a successful exit */
 PHP_FUNCTION(pcntl_wifexited)
 {
 #ifdef WIFEXITED
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	if (WIFEXITED(status_word))
+	int_status_word = (int) status_word;
+	if (WIFEXITED(int_status_word))
 		RETURN_TRUE;
 #endif
+
 	RETURN_FALSE;
 }
 /* }}} */
@@ -779,12 +791,14 @@ PHP_FUNCTION(pcntl_wifstopped)
 {
 #ifdef WIFSTOPPED
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	if (WIFSTOPPED(status_word))
+	int_status_word = (int) status_word;
+	if (WIFSTOPPED(int_status_word))
 		RETURN_TRUE;
 #endif
 	RETURN_FALSE;
@@ -797,12 +811,14 @@ PHP_FUNCTION(pcntl_wifsignaled)
 {
 #ifdef WIFSIGNALED
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	if (WIFSIGNALED(status_word))
+	int_status_word = (int) status_word;
+	if (WIFSIGNALED(int_status_word))
 		RETURN_TRUE;
 #endif
 	RETURN_FALSE;
@@ -814,12 +830,14 @@ PHP_FUNCTION(pcntl_wifcontinued)
 {
 #ifdef HAVE_WCONTINUED
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	if (WIFCONTINUED(status_word))
+	int_status_word = (int) status_word;
+	if (WIFCONTINUED(int_status_word))
 		RETURN_TRUE;
 #endif
 	RETURN_FALSE;
@@ -833,12 +851,14 @@ PHP_FUNCTION(pcntl_wexitstatus)
 {
 #ifdef WEXITSTATUS
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	RETURN_LONG(WEXITSTATUS(status_word));
+	int_status_word = (int) status_word;
+	RETURN_LONG(WEXITSTATUS(int_status_word));
 #else
 	RETURN_FALSE;
 #endif
@@ -851,12 +871,14 @@ PHP_FUNCTION(pcntl_wtermsig)
 {
 #ifdef WTERMSIG
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	RETURN_LONG(WTERMSIG(status_word));
+	int_status_word = (int) status_word;
+	RETURN_LONG(WTERMSIG(int_status_word));
 #else
 	RETURN_FALSE;
 #endif
@@ -869,12 +891,14 @@ PHP_FUNCTION(pcntl_wstopsig)
 {
 #ifdef WSTOPSIG
 	zend_long status_word;
+	int int_status_word;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &status_word) == FAILURE) {
 	       return;
 	}
 
-	RETURN_LONG(WSTOPSIG(status_word));
+	int_status_word = (int) status_word;
+	RETURN_LONG(WSTOPSIG(int_status_word));
 #else
 	RETURN_FALSE;
 #endif
@@ -981,7 +1005,6 @@ PHP_FUNCTION(pcntl_exec)
 PHP_FUNCTION(pcntl_signal)
 {
 	zval *handle;
-	zend_string *func_name;
 	zend_long signo;
 	zend_bool restart_syscalls = 1;
 
@@ -989,7 +1012,7 @@ PHP_FUNCTION(pcntl_signal)
 		return;
 	}
 
-	if (signo < 1 || signo > 32) {
+	if (signo < 1 || signo >= NSIG) {
 		php_error_docref(NULL, E_WARNING, "Invalid signal");
 		RETURN_FALSE;
 	}
@@ -998,7 +1021,7 @@ PHP_FUNCTION(pcntl_signal)
 		/* since calling malloc() from within a signal handler is not portable,
 		 * pre-allocate a few records for recording signals */
 		int i;
-		for (i = 0; i < 32; i++) {
+		for (i = 0; i < NSIG; i++) {
 			struct php_pcntl_pending_signal *psig;
 
 			psig = emalloc(sizeof(*psig));
@@ -1022,17 +1045,17 @@ PHP_FUNCTION(pcntl_signal)
 		RETURN_TRUE;
 	}
 
-	if (!zend_is_callable(handle, 0, &func_name)) {
+	if (!zend_is_callable(handle, 0, NULL)) {
+		zend_string *func_name = zend_get_callable_name(handle);
 		PCNTL_G(last_error) = EINVAL;
 		php_error_docref(NULL, E_WARNING, "%s is not a callable function name error", ZSTR_VAL(func_name));
 		zend_string_release(func_name);
 		RETURN_FALSE;
 	}
-	zend_string_release(func_name);
 
 	/* Add the function name to our signal table */
 	if (zend_hash_index_update(&PCNTL_G(php_signal_table), signo, handle)) {
-		if (Z_REFCOUNTED_P(handle)) Z_ADDREF_P(handle);
+		Z_TRY_ADDREF_P(handle);
 	}
 
 	if (php_signal4(signo, pcntl_signal_handler, (int) restart_syscalls, 1) == (Sigfunc *)SIG_ERR) {
@@ -1117,7 +1140,7 @@ PHP_FUNCTION(pcntl_sigprocmask)
 		} else {
 			zend_hash_clean(Z_ARRVAL_P(user_oldset));
 		}
-		for (signo = 1; signo < MAX(NSIG-1, SIGRTMAX); ++signo) {
+		for (signo = 1; signo < NSIG; ++signo) {
 			if (sigismember(&oldset, signo) != 1) {
 				continue;
 			}
@@ -1379,11 +1402,7 @@ static void pcntl_signal_handler(int signo)
 	psig->next = NULL;
 
 #ifdef HAVE_STRUCT_SIGINFO_T
-	zval user_siginfo;
-	array_init(&user_siginfo);
-	pcntl_siginfo_to_zval(signo, siginfo, &user_siginfo);
-	psig->siginfo = zend_array_dup(Z_ARRVAL(user_siginfo));
-	zval_ptr_dtor(&user_siginfo);
+	psig->siginfo = *siginfo;
 #endif
 
 	/* the head check is important, as the tick handler cannot atomically clear both
@@ -1428,14 +1447,14 @@ void pcntl_signal_dispatch()
 	PCNTL_G(head) = NULL; /* simple stores are atomic */
 
 	/* Allocate */
-
 	while (queue) {
 		if ((handle = zend_hash_index_find(&PCNTL_G(php_signal_table), queue->signo)) != NULL) {
 			if (Z_TYPE_P(handle) != IS_LONG) {
 				ZVAL_NULL(&retval);
 				ZVAL_LONG(&params[0], queue->signo);
 #ifdef HAVE_STRUCT_SIGINFO_T
-				ZVAL_ARR(&params[1], queue->siginfo);
+				array_init(&params[1]);
+				pcntl_siginfo_to_zval(queue->signo, &queue->siginfo, &params[1]);
 #else
 				ZVAL_NULL(&params[1]);
 #endif

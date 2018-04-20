@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2016 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -99,7 +99,8 @@ static unsigned char itoa64[] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi
 static void php_to64(char *s, int n) /* {{{ */
 {
 	while (--n >= 0) {
-		*s++ = itoa64[*s&0x3f];
+		*s = itoa64[*s & 0x3f];
+		s++;
 	}
 }
 /* }}} */
@@ -128,12 +129,12 @@ PHPAPI zend_string *php_crypt(const char *password, const int pass_len, const ch
 
 			crypt_res = php_sha512_crypt_r(password, salt, output, PHP_MAX_SALT_LEN);
 			if (!crypt_res) {
-				memset(output, 0, PHP_MAX_SALT_LEN);
+				ZEND_SECURE_ZERO(output, PHP_MAX_SALT_LEN);
 				efree(output);
 				return NULL;
 			} else {
 				result = zend_string_init(output, strlen(output), 0);
-				memset(output, 0, PHP_MAX_SALT_LEN);
+				ZEND_SECURE_ZERO(output, PHP_MAX_SALT_LEN);
 				efree(output);
 				return result;
 			}
@@ -143,12 +144,12 @@ PHPAPI zend_string *php_crypt(const char *password, const int pass_len, const ch
 
 			crypt_res = php_sha256_crypt_r(password, salt, output, PHP_MAX_SALT_LEN);
 			if (!crypt_res) {
-				memset(output, 0, PHP_MAX_SALT_LEN);
+				ZEND_SECURE_ZERO(output, PHP_MAX_SALT_LEN);
 				efree(output);
 				return NULL;
 			} else {
 				result = zend_string_init(output, strlen(output), 0);
-				memset(output, 0, PHP_MAX_SALT_LEN);
+				ZEND_SECURE_ZERO(output, PHP_MAX_SALT_LEN);
 				efree(output);
 				return result;
 			}
@@ -244,15 +245,17 @@ PHP_FUNCTION(crypt)
 	size_t str_len, salt_in_len = 0;
 	zend_string *result;
 
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_STRING(str, str_len)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STRING(salt_in, salt_in_len)
+	ZEND_PARSE_PARAMETERS_END();
+
 	salt[0] = salt[PHP_MAX_SALT_LEN] = '\0';
 
 	/* This will produce suitable results if people depend on DES-encryption
 	 * available (passing always 2-character salt). At least for glibc6.1 */
 	memset(&salt[1], '$', PHP_MAX_SALT_LEN - 1);
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &str, &str_len, &salt_in, &salt_in_len) == FAILURE) {
-		return;
-	}
 
 	if (salt_in) {
 		memcpy(salt, salt_in, MIN(PHP_MAX_SALT_LEN, salt_in_len));

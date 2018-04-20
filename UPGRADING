@@ -1,4 +1,4 @@
-PHP 7.1 UPGRADE NOTES
+PHP 7.3 UPGRADE NOTES
 
 1. Backward Incompatible Changes
 2. New Features
@@ -19,155 +19,147 @@ PHP 7.1 UPGRADE NOTES
 1. Backward Incompatible Changes
 ========================================
 
-- Core:
-  . 'void' can no longer be used as the name of a class, interface, or trait.
-    This applies to declarations, class_alias() and use statements.
-  . 'iterable' can no longer be used as the name of a class, interface, or
-    trait. This applies to declarations, class_alias() and use statements.
-    (RFC: https://wiki.php.net/rfc/iterable)
-  . (int), intval() where $base is 10 or unspecified, settype(), decbin(),
-    decoct(), dechex(), integer operators and other conversions now always
-    respect scientific notation in numeric strings.
-    (RFC: https://wiki.php.net/rfc/invalid_strings_in_arithmetic)
-  . The ASCII 0x7F Delete control character is no longer permitted in unquoted
-    identifiers in source code.
-  . The following functions may no longer be called dynamically using $func(),
-    call_user_func(), array_map() or similar:
-     . extract()
-     . compact()
-     . get_defined_vars()
-     . func_get_args()
-     . func_get_arg()
-     . func_num_args()
-     . parse_str() with one argument
-     . mb_parse_str() with one argument
-     . assert() with a string argument
-    (RFC: https://wiki.php.net/rfc/forbid_dynamic_scope_introspection)
-  . If the error_log is set to syslog, the PHP error levels are mapped to the
-    syslog error levels. This brings finer differentiation in the error logs
-    in contrary to the previous approach where all the errors are loggged with
-    the notice level only.
-  . Don't call destructors of incompletely constructed objects, even if they
-    are kept referenced. See bug #29368 and Zend/tests/bug29368_1.phpt.
-  . rand() and srand() are now aliases of mt_rand() and mt_srand().
-    Consequently the output of the following functions has changed:
-     . rand()
-     . shuffle()
-     . str_shuffle()
-     . array_rand()
-  . Fixes to random number generators mean that mt_rand() now produces a
-    different sequence of outputs to previous versions. If you relied on
-    mt_srand() to produce a deterministic sequence, it can be called using
-    mt_srand($seed, MT_RAND_PHP) to produce old the sequences.
+Core:
+  . The ext_skel utility has been completely redesigned with new options and 
+    some old options removed. This is now written in PHP and has no external 
+	dependencies.
+  . Support for BeOS has been dropped.
+  . Exceptions thrown due to automatic conversion of warnings into exceptions
+    in EH_THROW mode (e.g. some DateTime exceptions) no longer populate
+    error_get_last() state. As such, they now work the same way as manually
+    thrown exceptions.
+  . TypeError now reports wrong types as `int` and `bool` instead of `integer`
+    and `boolean`.
 
-- JSON:
-  . The serialize_precision is used instead of precision when encoding double
-    values.
-  . An empty key is decoded as an empty property name instead of using _empty_
-    property name when decoding object to stdClass.
-  . When calling json_encode with JSON_UNESCAPED_UNICODE option, U+2028 and
-    U+2029 are escaped.
+BCMath:
+  . All warnings thrown by BCMath functions are now using PHP's error handling.
+    Formerly some warnings have directly been written to stderr.
+  . bcmul() and bcpow() now return numbers with the requested scale. Formerly,
+    the returned numbers may have omitted trailing decimal zeroes.
 
-- OpenSSL:
-  . Dropped sslv2 stream.
+Reflection:
+  . Reflection results now return `int` and `bool` instead of `integer`
+    and `boolean`.
+
+SPL:
+  . If an SPL autoloader throws an exception, following autoloaders will not be
+    executed. Previously all autoloaders were executed and exceptions were
+    chained.
+
+SimpleXML:
+  . Mathematic operations involving SimpleXML objects will now treat the text as
+    an integer or float, whichever is more appropriate. Previously values were
+    treated as integers unconditionally.
+
+Standard:
+  . getimagesize() and related functions now report the mime type of BMP images
+	  as image/bmp instead of image/x-ms-bmp, since the former has been registered
+		with the IANA (see RFC 7903).
 
 ========================================
 2. New Features
 ========================================
-- Core
-  . Added void return type, which requires that a function not return a value.
-    (RFC: https://wiki.php.net/rfc/void_return_type)
-  . Added iterable pseudo-type accepting any array or object implementing
-    Traversable.
-    (RFC: https://wiki.php.net/rfc/iterable)
-  . String offset access now supports negative references, which will be
-    counted from the end of the string.
-    (RFC: https://wiki.php.net/rfc/negative-string-offsets)
-  . Added a form of the list() construct where keys can be specified.
-    (RFC: https://wiki.php.net/rfc/list_keys)
-  . Added [] = as alternative construct to list() =.
-    (RFC: https://wiki.php.net/rfc/short_list_syntax)
-  . Number operators taking numeric strings now emit "A non well formed numeric
-    value encountered" E_NOTICEs for leading-numeric strings, and "A
-    non-numeric value encountered" E_WARNINGs for non-numeric strings.
-    This always applies to the +, -, *, /, **, %, << and >> operators, and
-    their assignment counterparts +=, -=, *=, /=, **=, %=, <<= and >>=.
-    For the bitwise operators |, & and ^, and their assignment counterparts
-    |=, &= and ^=, this only applies where only one operand is a string.
-    Note that this never applies to the bitwise NOT operator, ~, which does not
-    handle numeric strings, nor to the increment and decrement operators
-    ++ and --, which have a unique approach to handling numeric strings.
-    (RFC: https://wiki.php.net/rfc/invalid_strings_in_arithmetic)
-  . Closure::fromCallable (RFC: https://wiki.php.net/rfc/closurefromcallable)
+
+Core:
+  . Implemented flexible heredoc and nowdoc syntax: The closing marker for doc
+    strings is no longer required to be followed by a semicolon or newline.
+    Additionally the closing marker may be indented, in which case the
+    indentation will be stripped from all lines in the doc string.
+    (RFC: https://wiki.php.net/rfc/flexible_heredoc_nowdoc_syntaxes)
+  . Array destructuring now supports reference assignments using the syntax
+    [&$a, [$b, &$c]] = $d. The same is also supported for list().
+    (RFC: https://wiki.php.net/rfc/list_reference_assignment)
+  . instanceof now allows literals as the first operand,
+    in which case the result is always FALSE.
+
+BCMath:
+  . bcscale() can now also be used as getter to retrieve the current scale in use.
+
+readline:
+  . Support for the completion_append_character and completion_suppress_append
+    options has been added to readline_info(). These options are only available
+    if PHP is linked against libreadline (rather than libedit).
 
 ========================================
 3. Changes in SAPI modules
 ========================================
-- apache2handler:
-  . Implemented per module logging.
-  . Implemented error level mapping between PHP and Apache for the error logs.
 
 ========================================
 4. Deprecated Functionality
 ========================================
 
-- 'e' option of mb_ereg_replace() and mb_eregi_replace().
-- ext/mcrypt is now fully deprecated.
-
 ========================================
 5. Changed Functions
 ========================================
-- get_headers() has an extra parameter which allows passing a custom stream
-  context.
-- The first $varname argument for getenv() is no longer mandatory, the
-  current environment variables will be returned as an associative array
-  when omitted.
-- json_encode() accepts new option JSON_UNESCAPED_LINE_TERMINATORS that
-  disables escaping of U+2028 and U+2029 characters when
-  JSON_UNESCAPED_UNICODE is supplied.
-- long2ip() accepts integer as parameter now
-- pg_last_notice() accepts optional long parameter to specify operation.
-  PGSQL_NOTICE_LAST - Get last notice (Default)
-  PGSQL_NOTICE_ALL - Get all stored notices
-  PGSQL_NOTICE_CLEAR - Remove all stored notices
-  It returns empty string or array on successful PGSQL_NOTICE_LAST/ALL calls.
-  It returned FALSE for empty notice previously.
-- pg_fetch_all() accepts 2nd optional result type parameter like
-  pg_fetch_row().
-- pg_select() accepts 4th optional result type parameter like pg_fetch_row().
-- parse_url() is more restrictive now and supports RFC3986.
-- unpack() accepts an additional optional $offset argument. '@' format code
-  (that specifes an absolute position) is applyed to input data after
-  the $offset argument.
-- strpos(), stripos(), substr_count(), grapheme_strpos(), grapheme_stripos(),
-  grapheme_extract(), iconv_strpos(), mb_strimwidth(), mb_ereg_search_setpos(),
-  mb_strpos() and mb_stripos() now accept negative string offsets.
-- substr_count() and mb_strimwidth() additionally also accept negative length.
-- file_get_contents() accepts a negative seek offset if the stream is seekable.
-- tempnam() throws a notice when failing back to the system temp dir.
-- getopt() has an extra by-ref parameter : optind
-- mb_ereg() and mb_ereg_replace() reject illegal byte sequences.
-- FILTER_FLAG_EMAIL_UNICODE can be used with filter_var() for email validation
-  according to RFC 6531.
+
+JSON:
+  . A new flag has been added, JSON_THROW_ON_ERROR, which can be used with
+    json_decode() or json_encode() and causes these functions to throw a
+    JsonException upon an error, instead of setting the global error state that
+    is retrieved with json_last_error(). JSON_PARTIAL_OUTPUT_ON_ERROR takes
+    precedence over JSON_THROW_ON_ERROR.
+    (RFC: https://wiki.php.net/rfc/json_throw_on_error)
+
+Standard:
+  . debug_zval_dump() was changed to display recursive arrays and objects
+    in the same way as var_dump(). Now, it doesn't display them twice.
+  . array_push() and array_unshift() can now also be called with a single
+    argument, which is particularly convenient wrt. the spread operator.
+
+PCRE:
+  . preg_quote() now also escapes the '#' character.
 
 ========================================
 6. New Functions
 ========================================
-- Core:
-  . Added sapi_windows_cp_set(), sapi_windows_cp_get(), sapi_windows_cp_is_utf8(),
-    sapi_windows_cp_conv() for codepage handling.
 
-- pcntl:
-  . Added pcntl_signal_get_handler() that returns the current signal handler
-    for a particular signal.
+Core:
+  . Added monotonic timer function hrtime([bool get_as_num]). It returns an
+    array of the form [seconds, nanoseconds] with the timestamp starting at
+    an unspecified point in the past. If the optional argument is passed as
+    true, the return value is an integer on 64-bit systems or float on
+    32-bit systems, representing the nanoseconds. The timestamp is not
+    adjustable and is not related to wall clock or time of day. The timers
+    are available under Linux, FreeBSD, Windows, Mac, SunOS, AIX and their
+    derivatives. If no required timers are provided by a corresponding
+    platform, the function returns false.
 
-- Standard:
-  . Added is_iterable() that determines if a value will be accepted by the new
-    iterable pseudo-type.
+Date:
+  . Added the DateTime::createFromImmutable() method, which mirrors
+    DateTimeImmutable::createFromMutable().
+
+GMP:
+  . Added gmp_binomial(n, k) for calculating binomial coefficients.
+  . Added gmp_lcm(a, b) for calculating the least common multiple.
+  . Added gmp_perfect_power(a) to check if number is a perfect power.
+  . Added gmp_kronecker(a, b) to compute the Kronecker symbol.
+
+Intl:
+  . Added void Spoofchecker::setRestrictionLevel(int $level) method, available
+    when linked with ICU >= 58.1. Levels are represented as class constants
+    - Spoofchecker::ASCII
+    - Spoofchecker::HIGHLY_RESTRICTIVE
+    - Spoofchecker::MODERATELY_RESTRICTIVE
+    - Spoofchecker::MINIMALLY_RESTRICTIVE
+    - Spoofchecker::UNRESTRICTIVE
+    - Spoofchecker::SINGLE_SCRIPT_RESTRICTIVE
+    For the detailed documentation on the restriction levels, see
+    URestrictionLevel under
+    http://icu-project.org/apiref/icu4c/uspoof_8h.html
+  . Added Normalizer::getRawDecomposition() and normalizer_get_raw_decomposition(),
+    to retrieve the Decomposition_Mapping property of a character.
+
+Standard:
+  . Added is_countable() function, to check whether a value may be passed to
+    count().
+    (RFC: https://wiki.php.net/rfc/is-countable)
 
 ========================================
 7. New Classes and Interfaces
 ========================================
+
+JSON:
+  . JsonException
 
 ========================================
 8. Removed Extensions and SAPIs
@@ -177,198 +169,74 @@ PHP 7.1 UPGRADE NOTES
 9. Other Changes to Extensions
 ========================================
 
-- Date:
-  . Invalid serialization data for a DateTime or DatePeriod object will now
-    throw an instance of Error from __wakeup() or __set_state() instead of
-    resulting in a fatal error.
-  . Timezone initialization failure from serialized data will now throw an
-    instance of Error from __wakeup() or __set_state() instead of resulting in
-    a fatal error.
+ Curl:
+  . libcurl >= 7.15.5 is now required.
 
-- DBA:
-  . Data modification functions (e.g.: dba_insert()) now throw an instance of
-    Error instead of triggering a catchable fatal error if the key is does not
-    contain exactly two elements.
+ Filter:
+  . FILTER_VALIDATE_FLOAT now also supports a `thousand` option, which
+    defines the set of allowed thousand separator chars.  The default (`"',."`)
+    is fully backward compatible with former PHP versions.
 
-- DOM:
-  . Invalid schema or RelaxNG validation contexts will throw an instance of
-    Error instead of resulting in a fatal error.
-  . Attempting to register a node class that does not extend the appropriate
-    base class will now throw an instance of Error instead of resulting in a
-    fatal error.
-  . Attempting to read an invalid or write to a readonly property will throw
-    an instance of Error instead of resulting in a fatal error.
+ FTP:
+  . Set default transfer mode to binary
 
-- GD:
-  . Changed the default of the ini setting gd.jpeg_ignore_warning to 1.
+ Intl:
+  . Normalizer::NONE is deprecated, when PHP is linked with ICU >= 56
+  . Introduced Normalizer::FORM_KC_CF as Normalizer::normalize() argument
+    for NFKC_Casefold normalization, available when linked with ICU >= 56
 
-- IMAP:
-  . An email address longer than 16385 bytes will throw an instance of Error
-    instead of resulting in a fatal error.
-    
-- Intl:
-  . Failure to call the parent constructor in a class extending Collator
-    before invoking the parent methods will throw an instance of Error
-    instead of resulting in a recoverable fatal error.
-  . Cloning a Transliterator object may will now throw an instance of Error
-    instead of resulting in a fatal error if cloning the internal
-    transliterator fails.
+ MBString:
+  . The configuration option --with-libmbfl is no longer available.
 
-- LDAP:
-  . Providing an unknown modification type to ldap_batch_modify() will now
-    throw an instance of Error instead of resulting in a fatal error.
+ ODBC: 
+  . Support for ODBCRouter has been removed.
+  . Support for Birdstep has been removed.
 
-- Mbstring:
-  . mb_ereg() and mb_eregi() will now throw an instance of ParseError if an
-    invalid PHP expression is provided and the 'e' option is used.
-
-- Mcrypt:
-  . mcrypt_encrypt() and mcrypt_decrypt() will throw an instance of Error
-    instead of resulting in a fatal error if mcrypt cannot be initialized.
-
-- Mysqli:
-  . Attempting to read an invalid or write to a readonly property will throw
-    an instance of Error instead of resulting in a fatal error.
-
-- Reflection:
-  . Failure to retrieve a reflection object or retrieve an object property
-    will now throw an instance of Error instead of resulting in a fatal error.
-
-- Session:
-  . Custom session handlers that do not return strings for session IDs will 
-    now throw an instance of Error instead of resulting in a fatal error
-    when a function is called that must generate a session ID.
-  . An invalid setting for session.hash_function will throw an instance of
-    Error instead of resulting in a fatal error when a session ID is created.
-
-- SimpleXML:
-  . Creating an unnamed or duplicate attribute will throw an instance of Error
-    instead of resulting in a fatal error.
-
-- SPL:
-  . Attempting to clone an SplDirectory object will throw an instance of Error
-    instead of resulting in a fatal error.
-  . Calling ArrayIterator::append() when iterating over an object will throw an
-    instance of Error instead of resulting in a fatal error.
-
-- SQLite3:
-  . Upgraded bundled SQLite lib to 3.13.0
-
-- Standard:
-  . assert() will throw a ParseError when evaluating a string given as the first
-    argument if the PHP code is invalid instead of resulting in a catchable
-    fatal error.
-  . Calling forward_static_call() outside of a class scope will now throw an
-    instance of Error instead of resulting in a fatal error.
-
-- Tidy:
-  . Creating a tidyNode manually will now throw an instance of Error instead of
-    resulting in a fatal error.
-
-- WDDX:
-  . A circular reference when serializing will now throw an instance of Error
-    instead of resulting in a fatal error.
-
-- XML-RPC:
-  . A circular reference when serializing will now throw an instance of Error
-    instead of resulting in a fatal error.
-
-- Zip:
-  . ZipArchive::addGlob() will throw an instance of Error instead of resulting
-    in a fatal error if glob support is not available.
+ ZIP:
+  . Bundled libzip has been dropped,
+    system library is now required.
 
 ========================================
 10. New Global Constants
 ========================================
 
-- Core:
-  . PHP_FD_SETSIZE
+Curl:
+  . CURLOPT_REQUEST_TARGET
 
-- JSON:
-  . JSON_UNESCAPED_LINE_TERMINATORS
+JSON:
+  . JSON_THROW_ON_ERROR
 
-- Pgsql:
-  PGSQL_NOTICE_LAST
-  PGSQL_NOTICE_ALL
-  PGSQL_NOTICE_CLEAR
+PGSQL:
+  . Requires Postgres 9.3
+    - PGSQL_DIAG_SCHEMA_NAME
+	- PGSQL_DIAG_TABLE_NAME
+	- PGSQL_DIAG_COLUMN_NAME
+	- PGSQL_DIAG_DATATYPE_NAME
+	- PGSQL_DIAG_CONSTRAINT_NAME
+  . Requires Postgres 9.6
+    - PGSQL_DIAG_SEVERITY_NONLOCALIZED
 
 ========================================
 11. Changes to INI File Handling
 ========================================
 
-- serialize_precision
-  . If the value is set to -1, then the dtoa mode 0 is used. The value -1
-    is now used by default.
+- birdstep.max_links
+  . This INI directive has been removed.
 
-- precision
-  . If the value is set to -1, then the dtoa mode 0 is used. No changes
-    in default value which is still 14.
+- opcache.inherited_hack
+  . This INI directive has been removed. The value has already been ignored
+    since PHP 5.3.0.
 
 ========================================
 12. Windows Support
 ========================================
 
-- Core:
-  . Support for long and UTF-8 path;
-
-    If an application is UTF-8 conforming, no further action is required. For
-    applications depending on paths in non UTF-8 encodings for I/O, an explicit
-    INI directive has to be set. The encoding INI settings check relies on the
-    order in the core:
-      - internal_encoding
-      - default_charset
-      - zend.multibyte
-
-    Several functions for codepage handling were introduced:
-      - sapi_windows_cp_set() to set the default codepage
-      - sapi_windows_cp_get() to retrieve the current codepage
-      - sapi_windows_cp_is_utf8()
-      - sapi_windows_cp_conv() to convert between codepages, using iconv()
-        compatible signature
-    These functions are thread safe.
-
-    The console output codepage is adjusted depending on the encoding used in
-    PHP. Depending on the concrete system OEM codepage, the visible output
-    might or might be not correct. For example, in the default cmd.exe and on
-    a system with the OEM codepage 437, outputs in codepages 1251, 1252, 1253
-    and some others can be shown correctly when using UTF-8. On the same system,
-    chars in codepage like 20932 probably won't be shown correctly. This refers
-    to the particular system rules for codepage, font compatibility and the
-    particular console program used. PHP automatically sets the console codepage
-    according to the encoding rules from php.ini. Using alternative consoles
-    instead of cmd.exe directly might bring better experience in some cases.
-    Nevertheless be aware, runtime codepage switch after the request start
-    might bring unexpected side effects on CLI. The preferrable way is php.ini.
-
-    As a result of UTF-8 support in the streams, PHP scripts are not limited
-    to ASCII or ANSI filenames anymore. This is supported out of the box on
-    CLI. For other SAPI, the documentation for the corresponding server
-    is useful.
-
-    Long paths support is transparent. Paths longer than 260 bytes get
-    automatically prefixed with \\?\. The max path length is limited to
-    2048 bytes. Be aware, that the path segment limit (basename length) still
-    persists.
-
-    The recommended way to handle file paths, I/O and other related topics is
-    by utilizing UTF-8.
-
-  . Support for ftok()
-
-- FCGI
-  . PHP_FCGI_CHILDREN is respected. If this environment variable is defined,
-    the first php-fcgi.exe process will exec the specified number of children.
-    Those will share the same TCP socket. 
-
-- readline:
-  . The readline extension is supported through the WinEditLine library
-    (http://mingweditline.sourceforge.net/). Thereby, the interactive CLI
-    shell is supported as well (php.exe -a).
-
-    It is well known, but nevertheless is worth mentioning again, that
-    the readline extension is not thread safe and will never be. Thus,
-    the usage of it with any true thread safe SAPI (like Apache mod_winnt) is
-    strongely discouraged.
+- Core
+  . File descriptors are opened in shared read/write/delete mode by default.
+    This effectively maps the UNIX semantics and allows to delete files with
+    handles in use. It is not 100% same, some platform differences still
+    persist. After the deletion, the filename entry is blocked, until all
+    the opened handles to it are closed.
 
 ========================================
 13. Other Changes

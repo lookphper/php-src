@@ -1,5 +1,11 @@
 --TEST--
 Test scandir() function : usage variations - different sorting constants
+--SKIPIF--
+<?php
+if (substr(PHP_OS, 0, 3) != 'WIN') {
+  die("skip Valid only on Windows");
+}
+?>
 --FILE--
 <?php
 /* Prototype  : array scandir(string $dir [, int $sorting_order [, resource $context]])
@@ -46,7 +52,7 @@ delete_files($dir, 2, "私はガラスを食べられますfile");
 $dir = dirname(__FILE__) . '/私はガラスを食べられますscandir_variation10';
 rmdir($dir);
 ?>
---EXPECTF--
+--EXPECT--
 SCANDIR_SORT_ASCENDING: 0
 SCANDIR_SORT_DESCENDING: 1
 SCANDIR_SORT_NONE: 2

@@ -3,7 +3,7 @@
    +----------------------------------------------------------------------+
    | Zend Engine                                                          |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1998-2016 Zend Technologies Ltd. (http://www.zend.com) |
+   | Copyright (c) 1998-2018 Zend Technologies Ltd. (http://www.zend.com) |
    +----------------------------------------------------------------------+
    | This source file is subject to version 2.00 of the Zend license,     |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -43,7 +43,7 @@ static YYSIZE_T zend_yytnamerr(char*, const char*);
 
 %}
 
-%pure_parser
+%pure-parser
 %expect 0
 
 %code requires {
@@ -327,28 +327,33 @@ top_statement:
 			{ $$ = zend_ast_create(ZEND_AST_NAMESPACE, NULL, $4); }
 	|	T_USE mixed_group_use_declaration ';'		{ $$ = $2; }
 	|	T_USE use_type group_use_declaration ';'	{ $$ = $3; $$->attr = $2; }
-	|	T_USE use_declarations ';'					{ $$ = $2; $$->attr = T_CLASS; }
+	|	T_USE use_declarations ';'					{ $$ = $2; $$->attr = ZEND_SYMBOL_CLASS; }
 	|	T_USE use_type use_declarations ';'			{ $$ = $3; $$->attr = $2; }
 	|	T_CONST const_list ';'						{ $$ = $2; }
 ;
 
 use_type:
-	 	T_FUNCTION 		{ $$ = T_FUNCTION; }
-	| 	T_CONST 		{ $$ = T_CONST; }
+	 	T_FUNCTION 		{ $$ = ZEND_SYMBOL_FUNCTION; }
+	| 	T_CONST 		{ $$ = ZEND_SYMBOL_CONST; }
 ;
 
 group_use_declaration:
-		namespace_name T_NS_SEPARATOR '{' unprefixed_use_declarations '}'
+		namespace_name T_NS_SEPARATOR '{' unprefixed_use_declarations possible_comma '}'
 			{ $$ = zend_ast_create(ZEND_AST_GROUP_USE, $1, $4); }
-	|	T_NS_SEPARATOR namespace_name T_NS_SEPARATOR '{' unprefixed_use_declarations '}'
+	|	T_NS_SEPARATOR namespace_name T_NS_SEPARATOR '{' unprefixed_use_declarations possible_comma '}'
 			{ $$ = zend_ast_create(ZEND_AST_GROUP_USE, $2, $5); }
 ;
 
 mixed_group_use_declaration:
-		namespace_name T_NS_SEPARATOR '{' inline_use_declarations '}'
+		namespace_name T_NS_SEPARATOR '{' inline_use_declarations possible_comma '}'
 			{ $$ = zend_ast_create(ZEND_AST_GROUP_USE, $1, $4);}
-	|	T_NS_SEPARATOR namespace_name T_NS_SEPARATOR '{' inline_use_declarations '}'
+	|	T_NS_SEPARATOR namespace_name T_NS_SEPARATOR '{' inline_use_declarations possible_comma '}'
 			{ $$ = zend_ast_create(ZEND_AST_GROUP_USE, $2, $5); }
+;
+
+possible_comma:
+		/* empty */
+	|	','
 ;
 
 inline_use_declarations:
@@ -373,7 +378,7 @@ use_declarations:
 ;
 
 inline_use_declaration:
-		unprefixed_use_declaration { $$ = $1; $$->attr = T_CLASS; }
+		unprefixed_use_declaration { $$ = $1; $$->attr = ZEND_SYMBOL_CLASS; }
 	|	use_type unprefixed_use_declaration { $$ = $2; $$->attr = $1; }
 ;
 
@@ -434,7 +439,7 @@ statement:
 	|	T_ECHO echo_expr_list ';'		{ $$ = $2; }
 	|	T_INLINE_HTML { $$ = zend_ast_create(ZEND_AST_ECHO, $1); }
 	|	expr ';' { $$ = $1; }
-	|	T_UNSET '(' unset_variables ')' ';' { $$ = $3; }
+	|	T_UNSET '(' unset_variables possible_comma ')' ';' { $$ = $3; }
 	|	T_FOREACH '(' expr T_AS foreach_variable ')' foreach_statement
 			{ $$ = zend_ast_create(ZEND_AST_FOREACH, $3, $5, NULL, $7); }
 	|	T_FOREACH '(' expr T_AS foreach_variable T_DOUBLE_ARROW foreach_variable ')'
@@ -665,7 +670,7 @@ return_type:
 
 argument_list:
 		'(' ')'	{ $$ = zend_ast_create_list(0, ZEND_AST_ARG_LIST); }
-	|	'(' non_empty_argument_list ')' { $$ = $2; }
+	|	'(' non_empty_argument_list possible_comma ')' { $$ = $2; }
 ;
 
 non_empty_argument_list:
@@ -753,9 +758,9 @@ trait_precedence:
 
 trait_alias:
 		trait_method_reference T_AS T_STRING
-			{ $$ = zend_ast_create_ex(ZEND_AST_TRAIT_ALIAS, 0, $1, $3); }
+			{ $$ = zend_ast_create(ZEND_AST_TRAIT_ALIAS, $1, $3); }
 	|	trait_method_reference T_AS reserved_non_modifiers
-			{ zval zv; zend_lex_tstring(&zv); $$ = zend_ast_create_ex(ZEND_AST_TRAIT_ALIAS, 0, $1, zend_ast_create_zval(&zv)); }
+			{ zval zv; zend_lex_tstring(&zv); $$ = zend_ast_create(ZEND_AST_TRAIT_ALIAS, $1, zend_ast_create_zval(&zv)); }
 	|	trait_method_reference T_AS member_modifier identifier
 			{ $$ = zend_ast_create_ex(ZEND_AST_TRAIT_ALIAS, $3, $1, $4); }
 	|	trait_method_reference T_AS member_modifier
@@ -1030,7 +1035,7 @@ function_call:
 
 class_name:
 		T_STATIC
-			{ zval zv; ZVAL_INTERNED_STR(&zv, CG(known_strings)[ZEND_STR_STATIC]);
+			{ zval zv; ZVAL_INTERNED_STR(&zv, ZSTR_KNOWN(ZEND_STR_STATIC));
 			  $$ = zend_ast_create_zval_ex(&zv, ZEND_NAME_NOT_FQ); }
 	|	name { $$ = $1; }
 ;
@@ -1247,14 +1252,15 @@ encaps_var:
 ;
 
 encaps_var_offset:
-		T_STRING		{ $$ = $1; }
-	|	T_NUM_STRING	{ $$ = $1; }
-	|	T_VARIABLE		{ $$ = zend_ast_create(ZEND_AST_VAR, $1); }
+		T_STRING			{ $$ = $1; }
+	|	T_NUM_STRING		{ $$ = $1; }
+	|	'-' T_NUM_STRING 	{ $$ = zend_negate_num_string($2); }
+	|	T_VARIABLE			{ $$ = zend_ast_create(ZEND_AST_VAR, $1); }
 ;
 
 
 internal_functions_in_yacc:
-		T_ISSET '(' isset_variables ')' { $$ = $3; }
+		T_ISSET '(' isset_variables possible_comma ')' { $$ = $3; }
 	|	T_EMPTY '(' expr ')' { $$ = zend_ast_create(ZEND_AST_EMPTY, $3); }
 	|	T_INCLUDE expr
 			{ $$ = zend_ast_create_ex(ZEND_AST_INCLUDE_OR_EVAL, ZEND_INCLUDE, $2); }
@@ -1369,4 +1375,6 @@ static YYSIZE_T zend_yytnamerr(char *yyres, const char *yystr)
  * c-basic-offset: 4
  * indent-tabs-mode: t
  * End:
+ * vim600: sw=4 ts=4 fdm=marker
+ * vim<600: sw=4 ts=4
  */

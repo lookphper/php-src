@@ -1,5 +1,11 @@
 --TEST--
 Test opendir() function : usage variations - different data types as $context arg
+--SKIPIF--
+<?php
+if (substr(PHP_OS, 0, 3) != 'WIN') {
+  die("skip Valid only on Windows");
+}
+?>
 --FILE--
 <?php
 /* Prototype  : mixed opendir(string $path[, resource $context])
@@ -114,22 +120,22 @@ rmdir($path);
 
 -- Iteration 1 --
 
-Warning: opendir() expects parameter 2 to be resource, integer given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, int given in %s on line %d
 NULL
 
 -- Iteration 2 --
 
-Warning: opendir() expects parameter 2 to be resource, integer given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, int given in %s on line %d
 NULL
 
 -- Iteration 3 --
 
-Warning: opendir() expects parameter 2 to be resource, integer given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, int given in %s on line %d
 NULL
 
 -- Iteration 4 --
 
-Warning: opendir() expects parameter 2 to be resource, integer given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, int given in %s on line %d
 NULL
 
 -- Iteration 5 --
@@ -169,22 +175,22 @@ NULL
 
 -- Iteration 12 --
 
-Warning: opendir() expects parameter 2 to be resource, boolean given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, bool given in %s on line %d
 NULL
 
 -- Iteration 13 --
 
-Warning: opendir() expects parameter 2 to be resource, boolean given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, bool given in %s on line %d
 NULL
 
 -- Iteration 14 --
 
-Warning: opendir() expects parameter 2 to be resource, boolean given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, bool given in %s on line %d
 NULL
 
 -- Iteration 15 --
 
-Warning: opendir() expects parameter 2 to be resource, boolean given in %s on line %d
+Warning: opendir() expects parameter 2 to be resource, bool given in %s on line %d
 NULL
 
 -- Iteration 16 --

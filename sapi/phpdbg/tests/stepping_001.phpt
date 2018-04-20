@@ -25,7 +25,7 @@ prompt> [L0 %s HANDLE_EXCEPTION                                                 
  00005: }
  00006: 
 prompt> [L0 %s HANDLE_EXCEPTION                                                                       %s]
-[L9 %s CATCH                   "Exception"          $e                   1                    %s]
+[L9 %s CATCH<%d>                "Exception"                               $e                   %s]
 >00008: 	foo();
  00009: } catch (Exception $e) {
  00010: 	echo "ok";
@@ -48,10 +48,8 @@ prompt>  ... ok
 >00011: } finally {
  00012: 	echo " ... ok";
  00013: }
-prompt> [L12 %s RETURN                  1                                                              %s]
->00012: 	echo " ... ok";
- 00013: }
- 00014: 
+prompt> [L14 %s RETURN<-1>              1                                                              %s]
+>00014: 
 prompt> 
 --FILE--
 <?php

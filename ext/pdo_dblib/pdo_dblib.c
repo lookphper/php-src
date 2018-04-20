@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2016 The PHP Group                                |
+  | Copyright (c) 1997-2018 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -35,7 +35,7 @@
 ZEND_DECLARE_MODULE_GLOBALS(dblib)
 static PHP_GINIT_FUNCTION(dblib);
 
-const zend_function_entry pdo_dblib_functions[] = {
+static const zend_function_entry pdo_dblib_functions[] = {
 	PHP_FE_END
 };
 
@@ -146,6 +146,26 @@ int pdo_dblib_msg_handler(DBPROCESS *dbproc, DBINT msgno, int msgstate,
 	return 0;
 }
 
+void pdo_dblib_err_dtor(pdo_dblib_err *err)
+{
+	if (!err) {
+		return;
+	}
+
+	if (err->dberrstr) {
+		efree(err->dberrstr);
+		err->dberrstr = NULL;
+	}
+	if (err->lastmsg) {
+		efree(err->lastmsg);
+		err->lastmsg = NULL;
+	}
+	if (err->oserrstr) {
+		efree(err->oserrstr);
+		err->oserrstr = NULL;
+	}
+}
+
 static PHP_GINIT_FUNCTION(dblib)
 {
 	memset(dblib_globals, 0, sizeof(*dblib_globals));
@@ -173,6 +193,11 @@ PHP_MINIT_FUNCTION(pdo_dblib)
 {
 	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_CONNECTION_TIMEOUT", (long) PDO_DBLIB_ATTR_CONNECTION_TIMEOUT);
 	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_QUERY_TIMEOUT", (long) PDO_DBLIB_ATTR_QUERY_TIMEOUT);
+	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_STRINGIFY_UNIQUEIDENTIFIER", (long) PDO_DBLIB_ATTR_STRINGIFY_UNIQUEIDENTIFIER);
+	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_VERSION", (long) PDO_DBLIB_ATTR_VERSION);
+	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_TDS_VERSION", (long) PDO_DBLIB_ATTR_TDS_VERSION);
+	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_SKIP_EMPTY_ROWSETS", (long) PDO_DBLIB_ATTR_SKIP_EMPTY_ROWSETS);
+	REGISTER_PDO_CLASS_CONST_LONG("DBLIB_ATTR_DATETIME_CONVERT", (long) PDO_DBLIB_ATTR_DATETIME_CONVERT);
 
 	if (FAIL == dbinit()) {
 		return FAILURE;
@@ -212,4 +237,3 @@ PHP_MINFO_FUNCTION(pdo_dblib)
 	php_info_print_table_row(2, "Flavour", PDO_DBLIB_FLAVOUR);
 	php_info_print_table_end();
 }
-

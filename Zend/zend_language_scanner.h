@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | Zend Engine                                                          |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1998-2016 Zend Technologies Ltd. (http://www.zend.com) |
+   | Copyright (c) 1998-2018 Zend Technologies Ltd. (http://www.zend.com) |
    +----------------------------------------------------------------------+
    | This source file is subject to version 2.00 of the Zend license,     |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -34,7 +34,7 @@ typedef struct _zend_lex_state {
 	zend_ptr_stack heredoc_label_stack;
 
 	zend_file_handle *in;
-	uint lineno;
+	uint32_t lineno;
 	zend_string *filename;
 
 	/* original (unfiltered) script */
@@ -61,6 +61,8 @@ typedef struct _zend_lex_state {
 typedef struct _zend_heredoc_label {
 	char *label;
 	int length;
+	int indentation;
+	zend_bool indentation_uses_spaces;
 } zend_heredoc_label;
 
 BEGIN_EXTERN_C()
@@ -81,4 +83,6 @@ END_EXTERN_C()
  * c-basic-offset: 4
  * indent-tabs-mode: t
  * End:
+ * vim600: sw=4 ts=4 fdm=marker
+ * vim<600: sw=4 ts=4
  */

@@ -41,7 +41,7 @@ open_basedir=
 	if (!$link->query("SELECT 1 FROM DUAL"))
 		printf("[005] [%d] %s\n", $link->errno, $link->error);
 
-	if (!$link->query("LOAD DATA LOCAL INFILE '" . __DIR__  . "/bug53503.data' INTO TABLE test")) {
+	if (!$link->query("LOAD DATA LOCAL INFILE '" . str_replace("\\", "/", __DIR__)  . "/bug53503.data' INTO TABLE test")) {
 		printf("[006] [%d] %s\n", $link->errno, $link->error);
 		echo "bug\n";
 	} else {
@@ -74,7 +74,7 @@ $link->close();
 
 unlink('bug53503.data');
 ?>
---EXPECTF--
+--EXPECT--
 done
 [006] [2000] open_basedir restriction in effect. Unable to open file
 done
